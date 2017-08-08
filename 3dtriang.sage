@@ -24,6 +24,7 @@ class Blob:
         self.delauney = Delaunay(self.pts)
         self.triangles = [(tuple(tr), np.array([list(self.pts[i]) for i in tr]))
                         for tr in self.delauney.convex_hull]
+        self.adj = make_adjacency_graph(self.triangles)
 
         for (tr, points) in self.triangles:
             if (tr[0] <= 2*self.t and tr[1] <= 2*self.t and tr[2] <= 2*self.t):
@@ -31,6 +32,13 @@ class Blob:
 
         fig = plt.figure()
         self.ax = fig.add_subplot(111, projection='3d')
+
+    def update_triangulation(self, pts):
+        self.pts = pts
+        self.delauney = Delaunay(self.pts)
+        self.triangles = [(tuple(tr), np.array([list(self.pts[i]) for i in tr]))
+                        for tr in self.delauney.convex_hull]
+        self.adj = make_adjacency_graph(self.triangles)
 
     def is_in_neck(self, tr):
         return (tr in self.neck)
@@ -76,52 +84,50 @@ class Blob:
          #plt.savefig("Delaunay.png", dpi=600)
          plt.show()
 
-    # recursively try to nudge one vertex at a time until we get a good flip
-    def try_perturbation(self):
-        ch1 = sorted(self.triangles)
-        pert_pts = move_vert(pts)
-        tr2 = Delaunay(pert_pts)
-        ch2 = np.sort(tr2.convex_hull, axis=0)
-        if convex_hull_contains_flip(ch1, ch2):
-            return pert_pts
-        else:
-            return pert_pts
-            #return try_perturbation(pts)
-
     # choose random triangle, choose random neighbors, and move vertices until
     # we get a flip
     def make_flip(self):
-        adj = make_adjacency_graph(self.triangles)
-        tr1 = choice(adj.keys())
-        tr2 = choice(adj[tr1])
-        vs = []
-        for ti in tr1:
+        tr1 = choice(self.adj.keys())
+        tr2 = choice(self.adj[tr1])
+        v1, v2 = get_opposite_verts(tr1, tr2)
+        return self.squish_verts(v1, v2)
 
-        return tr1, tr2
+    def squish_verts(self, v1, v2):
+        p1, p2 = self.pts[v1], self.pts[v2]
+        vect = p2-p1
+        epsilon = 0.03
+        p1_new = p1 + epsilon*vect
+        p1_new = p1_new/(np.linalg.norm(p1_new))
+        p2_new = p2 - epsilon*vect
+        p2_new = p2_new/(np.linalg.norm(p2_new))
+        pts_new = copy(self.pts)
+        pts_new[v1], pts_new[v2] = p1_new, p2_new
+        delau = Delaunay(pts_new)
+        ch1 = set([tuple(sorted(t)) for t in self.delauney.convex_hull])
+        ch2 = set([tuple(sorted(t)) for t in delau.convex_hull])
 
+        if ch1 == ch2:
+            self.update_triangulation(pts_new)
+            self.squish_verts(v1, v2)
+        else:
+            if convex_hull_contains_flip(ch1, ch2):
+                print "made a flip!"
+                self.update_triangulation(pts_new)
+                return True
+            else:
+                return False
 
+# given two adjacent triangles, get non-connected vertices
+def get_opposite_verts(tr1, tr2):
+    vs = [0,0]
+    for ti in tr1:
+        if ti not in tr2:
+            vs[0] = ti
+    for ti in tr2:
+        if ti not in tr1:
+            vs[1] = ti
+    return vs[0], vs[1]
 
-
-# given a vertex, perturb it in a random direction (proportional to epsilon)
-# the returned vertex will still be on unit sphere
-def perturb_one(i, verts, epsilon = 0.05):
-    rand_pt = [ uniform(-epsilon,epsilon),
-                uniform(-epsilon,epsilon),
-                uniform(-epsilon,epsilon)]
-    perturb = [xi + eps for (xi, eps) in zip(verts[i], rand_pt)]
-    norm = sum([i**2 for i in perturb])
-    rand_pt = [i/norm for i in perturb]
-    return rand_pt
-
-# move one random vertex in a random direction by 1/10 the average inter-vertex
-# radius
-def move_vert(verts):
-    n = len(verts)
-    i = randrange(0, n)
-    avg_rad = N(2/sqrt(n))
-    eps = 0.1*avg_rad
-    verts[i] = perturb_one(i, verts, eps)
-    return verts
 
 # scan two lists of triangles composing convex hull
 # if perturbation has only created one flip, only two triangles will be
@@ -131,19 +137,11 @@ def convex_hull_contains_flip(ch1, ch2):
     # don't allow triangles to be created or destroyed
     if len(ch1) != len(ch2):
         return False
-    difn = 0
-    for (ti, tj) in zip(ch1, ch2):
-        if not np.array_equal(ti,tj):
-            if (difn == 2):
-                return False
-            diffs.append((ti,tj))
-            difn += 1
 
-    if len(diffs) == 2:
-        quad1 = [ti for (ti,tj) in diffs]
-        quad2 = [tj for (ti,tj) in diffs]
-        if is_pairwise_flip(quad1, quad2) == True:
-            return True
+    diff1 = [t for t in ch1 if t not in ch2]
+    diff2 = [t for t in ch2 if t not in ch1]
+    if len(diff1) == 2 and len(diff2) == 2:
+        return is_pairwise_flip(diff1, diff2)
     else:
         return False
 
@@ -181,20 +179,52 @@ def make_adjacency_graph(ts):
                 neighbors[t].append(s)
     return neighbors
 
-
-
-
-
 # TODO: see if we can access neighbors of triangles
 # def count_both_sides(conv_hull):
 #     c_hull = sort(conv_hull)
 
 
-
-def do_movement(n, pts):
-    for i in range(n):
-        pts = try_perturbation(pts)
-    tri = Delaunay(pts)
-    return tri, pts
-
 b = Blob()
+
+def do_movement(n):
+    for i in range(n):
+        res = b.make_flip()
+        if res:
+            b.show()
+            plt.close("all")
+
+      
+
+
+    # recursively try to nudge one vertex at a time until we get a good flip
+#    def try_perturbation(self):
+#        ch1 = sorted(self.triangles)
+#        pert_pts = move_vert(pts)
+#        tr2 = Delaunay(pert_pts)
+#        ch2 = np.sort(tr2.convex_hull, axis=0)
+#        if convex_hull_contains_flip(ch1, ch2):
+#            return pert_pts
+#        else:
+#            return pert_pts
+#            #return try_perturbation(pts)
+
+## given a vertex, perturb it in a random direction (proportional to epsilon)
+## the returned vertex will still be on unit sphere
+#def perturb_one(i, verts, epsilon = 0.05):
+#    rand_pt = [ uniform(-epsilon,epsilon),
+#                uniform(-epsilon,epsilon),
+#                uniform(-epsilon,epsilon)]
+#    perturb = [xi + eps for (xi, eps) in zip(verts[i], rand_pt)]
+#    norm = sum([i**2 for i in perturb])
+#    rand_pt = [i/norm for i in perturb]
+#    return rand_pt
+#
+## move one random vertex in a random direction by 1/10 the average inter-vertex
+## radius
+#def move_vert(verts):
+#    n = len(verts)
+#    i = randrange(0, n)
+#    avg_rad = N(2/sqrt(n))
+#    eps = 0.1*avg_rad
+#    verts[i] = perturb_one(i, verts, eps)
+#    return verts
