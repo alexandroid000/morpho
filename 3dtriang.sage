@@ -22,13 +22,13 @@ class Blob:
 
         self.pts = np.array(self.make_neck_points() + self.make_random_points())
         self.delauney = Delaunay(self.pts)
-        self.triangles = [(tuple(tr), np.array([list(self.pts[i]) for i in tr]))
-                        for tr in self.delauney.convex_hull]
+        self.triangles = {tuple(tr):np.array([list(self.pts[i]) for i in tr])
+                        for tr in self.delauney.convex_hull}
         self.adj = make_adjacency_graph(self.triangles)
 
-        for (tr, points) in self.triangles:
+        for tr in self.triangles.keys():
             if (tr[0] <= 2*self.t and tr[1] <= 2*self.t and tr[2] <= 2*self.t):
-                self.neck[tr] = points
+                self.neck[tr] = self.triangles[tr]
 
         fig = plt.figure()
         self.ax = fig.add_subplot(111, projection='3d')
@@ -36,8 +36,8 @@ class Blob:
     def update_triangulation(self, pts):
         self.pts = pts
         self.delauney = Delaunay(self.pts)
-        self.triangles = [(tuple(tr), np.array([list(self.pts[i]) for i in tr]))
-                        for tr in self.delauney.convex_hull]
+        self.triangles = {tuple(tr):np.array([list(self.pts[i]) for i in tr])
+                        for tr in self.delauney.convex_hull}
         self.adj = make_adjacency_graph(self.triangles)
 
     def is_in_neck(self, tr):
@@ -71,9 +71,10 @@ class Blob:
         return pts
 
     def plot_triangle(self):
-        for (indx, tpts) in self.triangles:
-            viz_tri = Poly3DCollection([tpts])
-            if self.is_in_neck(indx):
+        for tr in self.triangles.keys():
+            pts = self.triangles[tr]
+            viz_tri = Poly3DCollection([pts])
+            if self.is_in_neck(tr):
                 viz_tri.set_color('r')
             viz_tri.set_edgecolor('k')
             self.ax.add_collection3d(viz_tri)
@@ -89,8 +90,21 @@ class Blob:
     def make_flip(self):
         tr1 = choice(self.adj.keys())
         tr2 = choice(self.adj[tr1])
-        v1, v2 = get_opposite_verts(tr1, tr2)
-        return self.squish_verts(v1, v2)
+        # case 1: reconfigure inside neck
+        if tr1 in self.neck and tr2 in self.neck:
+            v1, v2, shared = get_opposite_verts(tr1, tr2)
+            if self.squish_verts(v1, v2):
+                new_t1 = tuple(sorted([v1,v2,shared[0]]))
+                new_t2 = tuple(sorted([v1,v2,shared[1]]))
+                del self.neck[tr1]
+                del self.neck[tr2]
+                self.neck[new_t1] = self.triangles[new_t1]
+                self.neck[new_t2] = self.triangles[new_t2]
+                return True
+        if tr1 not in self.neck and tr2 not in self.neck:
+            v1, v2, shared = get_opposite_verts(tr1, tr2)
+            return self.squish_verts(v1, v2)
+
 
     def squish_verts(self, v1, v2):
         p1, p2 = self.pts[v1], self.pts[v2]
@@ -120,13 +134,16 @@ class Blob:
 # given two adjacent triangles, get non-connected vertices
 def get_opposite_verts(tr1, tr2):
     vs = [0,0]
+    shared = []
     for ti in tr1:
         if ti not in tr2:
             vs[0] = ti
+        else:
+            shared.append(ti)
     for ti in tr2:
         if ti not in tr1:
             vs[1] = ti
-    return vs[0], vs[1]
+    return vs[0], vs[1], shared
 
 
 # scan two lists of triangles composing convex hull
@@ -169,7 +186,7 @@ def are_neighbors(t1, t2):
 
 # not optimized
 def make_adjacency_graph(ts):
-    tis = sorted([ti for (ti, pts) in ts])
+    tis = sorted(ts.keys())
     neighbors = {}
     for t in tis:
         if t not in neighbors:
