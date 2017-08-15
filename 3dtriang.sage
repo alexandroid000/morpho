@@ -22,7 +22,7 @@ class Blob:
 
         self.pts = np.array(self.make_neck_points() + self.make_random_points())
         self.delauney = Delaunay(self.pts)
-        self.triangles = {tuple(tr):np.array([list(self.pts[i]) for i in tr])
+        self.triangles = {tuple(sorted(tr)):np.array([list(self.pts[i]) for i in tr])
                         for tr in self.delauney.convex_hull}
         self.adj = make_adjacency_graph(self.triangles)
 
@@ -53,11 +53,9 @@ class Blob:
             theta = N((2*pi/self.t)*i)
             pt1[0] = N(r*cos(theta))
             pt1[1] = N(r*sin(theta))
-
             theta2 = N(theta + (pi/self.t))
             pt2[0] = N(r*cos(theta2))
             pt2[1] = N(r*sin(theta2))
-
             pts.append(copy(pt1))
             pts.append(copy(pt2))
         return pts
