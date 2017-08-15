@@ -69,39 +69,85 @@ class Blob:
         for tr in self.triangles.keys():
             pts = self.triangles[tr]
             viz_tri = Poly3DCollection([pts])
-            if self.is_in_neck(tr):
+            if tr in self.neck:
                 viz_tri.set_color('r')
             viz_tri.set_edgecolor('k')
             self.ax.add_collection3d(viz_tri)
 
     def show(self):
-         self.plot_triangle()
-         self.ax.scatter(self.pts[:, 0], self.pts[:, 1], self.pts[:, 2], c='k')
-         #plt.savefig("Delaunay.png", dpi=600)
-         plt.show()
+        self.fig = plt.figure()
+        self.ax = self.fig.add_subplot(111, projection='3d')
+        self.plot_triangle()
+        self.ax.scatter(self.pts[:, 0], self.pts[:, 1], self.pts[:, 2], c='k')
+        #plt.savefig("Delaunay.png", dpi=600)
+        plt.show()
+        plt.close()
+
+    def flip_and_add_both(self,t1, t2):
+        if self.flip_triangs(t1, t2):
+            new_t1, new_t2 = expected_flip(t1, t2)
+            if t1 in self.neck:
+                del self.neck[t1]
+            if t2 in self.neck:
+                del self.neck[t2]
+            self.neck[new_t1] = self.triangles[new_t1]
+            self.neck[new_t2] = self.triangles[new_t2]
+            return True
+        else:
+            return False
 
     # choose random triangle, choose random neighbors, and move vertices until
     # we get a flip
     def make_flip(self):
-        tr1 = choice(self.adj.keys())
-        tr2 = choice(self.adj[tr1])
-        # case 1: reconfigure inside neck
-        if tr1 in self.neck and tr2 in self.neck:
-            v1, v2, shared = get_opposite_verts(tr1, tr2)
-            if self.squish_verts(v1, v2):
-                new_t1 = tuple(sorted([v1,v2,shared[0]]))
-                new_t2 = tuple(sorted([v1,v2,shared[1]]))
-                del self.neck[tr1]
-                del self.neck[tr2]
-                self.neck[new_t1] = self.triangles[new_t1]
-                self.neck[new_t2] = self.triangles[new_t2]
-                return True
-        if tr1 not in self.neck and tr2 not in self.neck:
-            v1, v2, shared = get_opposite_verts(tr1, tr2)
-            return self.squish_verts(v1, v2)
+        t1 = choice(self.adj.keys())
+        t2 = choice(self.adj[t1])
+        new_t1, new_t2 = expected_flip(t1, t2)
+        # case one: allow all flips that do not affect neck
+        if (t1 not in self.neck) and (t2 not in self.neck):
+            print "flip does not affect neck"
+            return self.flip_triangs(t1, t2)
+        # case two: one in, one out - allow all, both are now in neck
+        if  (((t1 in self.neck) and (t2 not in self.neck)) or
+            ((t2 in self.neck) and (t1 not in self.neck))):
+            print "flip one into neck"
+            return self.flip_and_add_both(t1, t2)
+
+        # case three: reconfigurations inside neck
+        # two sub cases
+        if (t1 in self.neck) and (t2 in self.neck):
+            ns1 = [n for n in self.adj[t1] if n in self.neck and n != t2]
+            ns2 = [n for n in self.adj[t2] if n in self.neck and n != t1]
+            if len(ns1) == 1 and len(ns2) == 1:
+                # check if any vertices shared by neighbors
+                common = set(ns1[0]).difference(set(ns2[0]))
+                # sub case one: flip keeps both in neck
+                if len(common) == 0:
+                    print "flip inside neck"
+                    return self.flip_and_add_both(t1, t2)
+                # sub case two: flip excludes triangle not containing common
+                # vertex from the neck
+                if len(common) == 1:
+                    print "flip one out of neck"
+                    if self.flip_triangs(t1, t2):
+                        del self.neck[t1]
+                        del self.neck[t2]
+                        if common[0] in new_t1:
+                            self.neck[new_t1] = self.triangles[new_t1]
+                            return True
+                        else:
+                            self.neck[new_t2] = self.triangles[new_t2]
+                            return True
+                    else:
+                        print("squish failed")
+                        return False
+            else:
+                print("more than two neighbors of a diamond are in the neck")
+                return False
 
 
-    def squish_verts(self, v1, v2):
+    def flip_triangs(self, t1, t2):
+        new_t1, new_t2 = expected_flip(t1, t2)
+        v1, v2, shared = get_opposite_verts(t1, t2)
         p1, p2 = self.pts[v1], self.pts[v2]
         vect = p2-p1
         epsilon = 0.03
