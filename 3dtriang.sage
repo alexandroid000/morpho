@@ -9,11 +9,11 @@ from copy import copy
 
 
 class Blob:
-    def __init__(self, t=15, n=30):
-        self.t = t
+    def __init__(self, n=45):
+        self.t = int(n/3)
         # number of triangles in neck must be even
-        if mod(t,2) != 0:
-            self.t = t + 1
+        if mod(self.t,2) != 0:
+            self.t = self.t + 1
         self.n = n
 
         # "height" of neck (should be less than 0.5)
