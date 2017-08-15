@@ -30,22 +30,19 @@ class Blob:
             if (tr[0] <= 2*self.t and tr[1] <= 2*self.t and tr[2] <= 2*self.t):
                 self.neck[tr] = self.triangles[tr]
 
-        fig = plt.figure()
-        self.ax = fig.add_subplot(111, projection='3d')
+        self.fig = plt.figure()
+        self.ax = self.fig.add_subplot(111, projection='3d')
 
     def update_triangulation(self, pts):
+#        print "updating triang"
         self.pts = pts
         self.delauney = Delaunay(self.pts)
-        self.triangles = {tuple(tr):np.array([list(self.pts[i]) for i in tr])
+        self.triangles = {tuple(sorted(tr)):np.array([list(self.pts[i]) for i in tr])
                         for tr in self.delauney.convex_hull}
         self.adj = make_adjacency_graph(self.triangles)
 
-    def is_in_neck(self, tr):
-        return (tr in self.neck)
-
     def make_neck_points(self):
         r = sqrt(1-(self.delz**2)/4)
-
         pts = []
         pt1 = [0,0,self.delz/2]
         pt2 = [0,0,-self.delz/2]
@@ -64,7 +61,7 @@ class Blob:
         # make random points
         S = SphericalDistribution()
         rand_pts = [list(S.get_random_element()) for i in range(self.n)]
-        rand_pts = [p for p in rand_pts if abs(p[2]) > self.delz*1.8]
+        rand_pts = [p for p in rand_pts if abs(p[2]) > self.delz*1.5]
         pts = [[0.0, 0.0, 0.0]] + rand_pts
         return pts
 
@@ -120,26 +117,35 @@ class Blob:
 
         if ch1 == ch2:
             self.update_triangulation(pts_new)
-            self.squish_verts(v1, v2)
+            return self.flip_triangs(t1, t2)
         else:
-            if convex_hull_contains_flip(ch1, ch2):
-                print "made a flip!"
+            # check if we flipped the triangles we expected to
+            success, tris = new_triangles(ch1, ch2)
+            if success and set([new_t1, new_t2]) == set(tris):
+#                print "made a flip!"
                 self.update_triangulation(pts_new)
                 return True
             else:
                 return False
 
+
+def expected_flip(t1, t2):
+    v1, v2, shared = get_opposite_verts(t1, t2)
+    new_t1 = tuple(sorted([v1,v2,shared[0]]))
+    new_t2 = tuple(sorted([v1,v2,shared[1]]))
+    return new_t1, new_t2
+
 # given two adjacent triangles, get non-connected vertices
-def get_opposite_verts(tr1, tr2):
+def get_opposite_verts(t1, t2):
     vs = [0,0]
     shared = []
-    for ti in tr1:
-        if ti not in tr2:
+    for ti in t1:
+        if ti not in t2:
             vs[0] = ti
         else:
             shared.append(ti)
-    for ti in tr2:
-        if ti not in tr1:
+    for ti in t2:
+        if ti not in t1:
             vs[1] = ti
     return vs[0], vs[1], shared
 
@@ -147,18 +153,23 @@ def get_opposite_verts(tr1, tr2):
 # scan two lists of triangles composing convex hull
 # if perturbation has only created one flip, only two triangles will be
 # different
-def convex_hull_contains_flip(ch1, ch2):
+def new_triangles(ch1, ch2):
     diffs = []
     # don't allow triangles to be created or destroyed
     if len(ch1) != len(ch2):
-        return False
+#        print "perturbation created or destroyed triangles, abandoning"
+        return False, []
 
     diff1 = [t for t in ch1 if t not in ch2]
     diff2 = [t for t in ch2 if t not in ch1]
     if len(diff1) == 2 and len(diff2) == 2:
-        return is_pairwise_flip(diff1, diff2)
+        if is_pairwise_flip(diff1, diff2):
+            return True, diff2
+        else:
+            return False, []
     else:
-        return False
+#        print "flipped too many triangles"
+        return False, []
 
 # given two pairs of triangles, return true if they are related by one flip
 # if they are the same vertex set (four vertices) but different triangulation,
@@ -200,13 +211,13 @@ def make_adjacency_graph(ts):
 
 
 b = Blob()
+c = Blob(200)
 
-def do_movement(n):
+def do_movement(blob, n):
     for i in range(n):
-        res = b.make_flip()
-        if res:
-            b.show()
-            plt.close("all")
+        res = blob.make_flip()
+#        if res:
+#            b.show()
 
       
 
