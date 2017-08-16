@@ -101,7 +101,7 @@ class Blob:
         return True
 
     def global_cache(self, case):
-        print self.l
+#        print self.l
         # adding a triangle to neck
         if case == 1 and self.l < 3:
             self.l = self.l + 1
@@ -125,19 +125,25 @@ class Blob:
         new_t1, new_t2 = expected_flip(t1, t2)
         # case zero: allow all flips that do not affect neck
         if (t1 not in self.neck) and (t2 not in self.neck):
-            return self.flip_triangs(t1, t2)
+            self.flip_triangs(t1, t2)
         # case one: one in, one out - allow all, both are now in neck
-        if  ((((t1 in self.neck) and (t2 not in self.neck)) or
-            ((t2 in self.neck) and (t1 not in self.neck))) and
-            rule(1)):
+        elif ((t1 in self.neck) and (t2 not in self.neck)) and rule(1):
 #            print "flip one into neck"
-            if self.flip_and_add_both(t1, t2):
-                self.k = self.k + 1
-                return True
+            #check that only one neighbor is in neck
+            ns = [n for n in self.adj[t2] if n in self.neck and n != t1]
+            if len(ns) == 0:
+                if self.flip_and_add_both(t1, t2):
+                    self.k = self.k + 1
+
+        elif ((t2 in self.neck) and (t1 not in self.neck)) and rule(1):
+            ns = [n for n in self.adj[t1] if n in self.neck and n != t2]
+            if len(ns) == 0:
+                if self.flip_and_add_both(t1, t2):
+                    self.k = self.k + 1
 
         # case two: reconfigurations inside neck
         # two sub cases
-        if (t1 in self.neck) and (t2 in self.neck):
+        elif (t1 in self.neck) and (t2 in self.neck):
             ns1 = [n for n in self.adj[t1] if n in self.neck and n != t2]
             ns2 = [n for n in self.adj[t2] if n in self.neck and n != t1]
             if len(ns1) == 1 and len(ns2) == 1:
@@ -146,10 +152,10 @@ class Blob:
                 # sub case one: flip keeps both in neck
                 if len(common) == 0 and rule(2):
 #                    print "flip inside neck"
-                    return self.flip_and_add_both(t1, t2)
+                    self.flip_and_add_both(t1, t2)
                 # sub case two: flip excludes triangle not containing common
                 # vertex from the neck
-                elif rule(3):
+                elif len(common) == 1 and rule(3):
                     if self.flip_triangs(t1, t2):
 #                        print "flip one out of neck"
                         del self.neck[t1]
@@ -157,18 +163,10 @@ class Blob:
                         self.k = self.k - 1
                         if common[0] in new_t1:
                             self.neck[new_t1] = self.triangles[new_t1]
-                            return True
                         else:
                             self.neck[new_t2] = self.triangles[new_t2]
-                            return True
-                    else:
-                        return False
-                else:
-                    return False
             else:
                 print("more than two neighbors of a diamond are in the neck")
-                return False
-
 
     def flip_triangs(self, t1, t2):
         v1, v2, shared = get_opposite_verts(t1, t2)
@@ -292,6 +290,8 @@ def plot_count(xdat, ydat, count="", title="", label=""):
 def do_movement(blob, n, viz = False):
     neck_len = [0]*n
     for i in range(n):
+        if i%100 == 0:
+            print i
         res = blob.make_flip(blob.allow)
         neck_len[i] = blob.k
 
