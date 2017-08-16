@@ -35,7 +35,6 @@ class Blob:
         self.ax = self.fig.add_subplot(111, projection='3d')
 
     def update_triangulation(self, pts):
-#        print "updating triang"
         self.pts = pts
         self.delauney = Delaunay(self.pts)
         self.triangles = {tuple(sorted(tr)):np.array([list(self.pts[i]) for i in tr])
@@ -86,11 +85,11 @@ class Blob:
 
     def flip_and_add_both(self,t1, t2):
         if self.flip_triangs(t1, t2):
-            new_t1, new_t2 = expected_flip(t1, t2)
             if t1 in self.neck:
                 del self.neck[t1]
             if t2 in self.neck:
                 del self.neck[t2]
+            new_t1, new_t2 = expected_flip(t1, t2)
             self.neck[new_t1] = self.triangles[new_t1]
             self.neck[new_t2] = self.triangles[new_t2]
             return True
@@ -105,13 +104,12 @@ class Blob:
         new_t1, new_t2 = expected_flip(t1, t2)
         # case one: allow all flips that do not affect neck
         if (t1 not in self.neck) and (t2 not in self.neck):
-#            print "flip does not affect neck"
             return self.flip_triangs(t1, t2)
         # case two: one in, one out - allow all, both are now in neck
         if  (((t1 in self.neck) and (t2 not in self.neck)) or
             ((t2 in self.neck) and (t1 not in self.neck))):
-#            print "flip one into neck"
             self.k = self.k + 1
+#            print "flip one into neck"
             return self.flip_and_add_both(t1, t2)
 
         # case three: reconfigurations inside neck
@@ -129,8 +127,8 @@ class Blob:
                 # sub case two: flip excludes triangle not containing common
                 # vertex from the neck
                 else: 
-#                    print "flip one out of neck"
                     if self.flip_triangs(t1, t2):
+#                        print "flip one out of neck"
                         del self.neck[t1]
                         del self.neck[t2]
                         self.k = self.k - 1
@@ -140,13 +138,14 @@ class Blob:
                         else:
                             self.neck[new_t2] = self.triangles[new_t2]
                             return True
+                    else:
+                        return False
             else:
                 print("more than two neighbors of a diamond are in the neck")
                 return False
 
 
     def flip_triangs(self, t1, t2):
-        new_t1, new_t2 = expected_flip(t1, t2)
         v1, v2, shared = get_opposite_verts(t1, t2)
         p1, p2 = self.pts[v1], self.pts[v2]
         vect = p2-p1
@@ -166,6 +165,7 @@ class Blob:
             return self.flip_triangs(t1, t2)
         else:
             # check if we flipped the triangles we expected to
+            new_t1, new_t2 = expected_flip(t1, t2)
             success, tris = new_triangles(ch1, ch2)
             if success and set([new_t1, new_t2]) == set(tris):
 #                print "made a flip!"
@@ -173,7 +173,6 @@ class Blob:
                 return True
             else:
                 return False
-
 
 def expected_flip(t1, t2):
     v1, v2, shared = get_opposite_verts(t1, t2)
