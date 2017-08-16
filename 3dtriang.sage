@@ -258,12 +258,23 @@ def make_adjacency_graph(ts):
 b = Blob()
 c = Blob(200)
 
-def do_movement(blob, n):
+def plot_count(xdat, ydat, count="", title="", label=""):
+    plt.figure()
+    plt.plot(xdat, ydat, '-o')
+    plt.title(title)
+    plt.xlabel(count)
+    plt.savefig(label+".pdf", bbox_inches='tight')
+    #plt.show()
+
+def do_movement(blob, n, viz = False):
+    neck_len = [0]*n
     for i in range(n):
         res = blob.make_flip()
-        print blob.k
-#        if res:
-#            b.show()
+        neck_len[i] = blob.k
+
+    plot_count(range(n), neck_len, "Neck length", label="neck_len_n"+str(n))
+    if viz:
+        blob.show()
 
       
 
