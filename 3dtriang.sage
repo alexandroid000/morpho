@@ -30,6 +30,7 @@ class Blob:
             if (tr[0] <= 2*self.t and tr[1] <= 2*self.t and tr[2] <= 2*self.t):
                 self.neck[tr] = self.triangles[tr]
 
+        self.k = len(self.neck)
         self.fig = plt.figure()
         self.ax = self.fig.add_subplot(111, projection='3d')
 
@@ -104,12 +105,13 @@ class Blob:
         new_t1, new_t2 = expected_flip(t1, t2)
         # case one: allow all flips that do not affect neck
         if (t1 not in self.neck) and (t2 not in self.neck):
-            print "flip does not affect neck"
+#            print "flip does not affect neck"
             return self.flip_triangs(t1, t2)
         # case two: one in, one out - allow all, both are now in neck
         if  (((t1 in self.neck) and (t2 not in self.neck)) or
             ((t2 in self.neck) and (t1 not in self.neck))):
-            print "flip one into neck"
+#            print "flip one into neck"
+            self.k = self.k + 1
             return self.flip_and_add_both(t1, t2)
 
         # case three: reconfigurations inside neck
@@ -122,24 +124,22 @@ class Blob:
                 common = set(ns1[0]).difference(set(ns2[0]))
                 # sub case one: flip keeps both in neck
                 if len(common) == 0:
-                    print "flip inside neck"
+#                    print "flip inside neck"
                     return self.flip_and_add_both(t1, t2)
                 # sub case two: flip excludes triangle not containing common
                 # vertex from the neck
-                if len(common) == 1:
-                    print "flip one out of neck"
+                else: 
+#                    print "flip one out of neck"
                     if self.flip_triangs(t1, t2):
                         del self.neck[t1]
                         del self.neck[t2]
+                        self.k = self.k - 1
                         if common[0] in new_t1:
                             self.neck[new_t1] = self.triangles[new_t1]
                             return True
                         else:
                             self.neck[new_t2] = self.triangles[new_t2]
                             return True
-                    else:
-                        print("squish failed")
-                        return False
             else:
                 print("more than two neighbors of a diamond are in the neck")
                 return False
@@ -262,6 +262,7 @@ c = Blob(200)
 def do_movement(blob, n):
     for i in range(n):
         res = blob.make_flip()
+        print blob.k
 #        if res:
 #            b.show()
 
