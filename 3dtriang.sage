@@ -119,7 +119,7 @@ class Blob:
             ns2 = [n for n in self.adj[t2] if n in self.neck and n != t1]
             if len(ns1) == 1 and len(ns2) == 1:
                 # check if any vertices shared by neighbors
-                common = set(ns1[0]).difference(set(ns2[0]))
+                common = list(set(ns1[0]).intersection(set(ns2[0])))
                 # sub case one: flip keeps both in neck
                 if len(common) == 0:
 #                    print "flip inside neck"
