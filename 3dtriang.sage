@@ -15,7 +15,7 @@ class Blob:
         if mod(self.t,2) != 0:
             self.t = self.t + 1
         self.n = n
-
+        self.prob_top = 1.0
         # "height" of neck (should be less than 0.5)
         self.delz = 0.2
         self.neck = {}
@@ -131,28 +131,32 @@ class Blob:
                     self.flip_and_add_both(t1, t2)
                 # SUBCASE 1: flip one triangle out of neck
                 elif len(common) == 1 and rule(2):
-                    if self.flip_triangs(t1, t2):
-#                        print "flip one out of neck"
-                        del self.neck[t1]
-                        del self.neck[t2]
-                        self.k = self.k - 1
-                        if common[0] in new_t1:
-                            self.neck[new_t1] = self.triangles[new_t1]
-                            ns = [n for n in self.adj[new_t2]
-                                    if n not in self.neck]
-
-                        else:
-                            self.neck[new_t2] = self.triangles[new_t2]
+                    if ns1[0] in self.top and random() <= self.prob_top:
+                        self.flip_out_of_neck(t1, t2, common)
             else:
                 print("more than two neighbors of a diamond are in the neck")
 
         # CASE 2: only remaining case: one in out out, flip one into neck
         elif ((t1 in self.neck) and (t2 not in self.neck)) and rule(3):
-            self.flip_out_of_neck(t1, t2)
+            self.flip_into_neck(t1, t2)
         elif ((t2 in self.neck) and (t1 not in self.neck)) and rule(3):
-            self.flip_out_of_neck(t2, t1)
+            self.flip_into_neck(t2, t1)
 
-    def flip_out_of_neck(self, nt, t):
+    def flip_out_of_neck(self, t1, t2, common):
+        if self.flip_triangs(t1, t2):
+#            print "flip one out of neck"
+            del self.neck[t1]
+            del self.neck[t2]
+            self.k = self.k - 1
+            if common[0] in new_t1:
+                self.neck[new_t1] = self.triangles[new_t1]
+                ns = [n for n in self.adj[new_t2]
+                        if n not in self.neck]
+
+            else:
+                self.neck[new_t2] = self.triangles[new_t2]
+
+    def flip_into_neck(self, nt, t):
         ns = [n for n in self.adj[t] if n in self.neck and n != nt]
         #check that only one neighbor is in neck
         if len(ns) == 0:
