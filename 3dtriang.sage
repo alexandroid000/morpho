@@ -140,7 +140,6 @@ class Blob:
                             self.neck[new_t1] = self.triangles[new_t1]
                             ns = [n for n in self.adj[new_t2]
                                     if n not in self.neck]
-                            if ns[0] in self.top:
 
                         else:
                             self.neck[new_t2] = self.triangles[new_t2]
