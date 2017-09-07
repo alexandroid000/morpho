@@ -34,6 +34,7 @@ class Blob:
         self.l = 0
         self.fig = plt.figure()
         self.ax = self.fig.add_subplot(111, projection='3d')
+        self.top, self.bottom = self.initialize_halves()
 
     def update_triangulation(self, pts):
         self.pts = pts
@@ -72,6 +73,10 @@ class Blob:
             viz_tri = Poly3DCollection([pts])
             if tr in self.neck:
                 viz_tri.set_color('r')
+            if tr in self.top:
+                viz_tri.set_color('b')
+            if tr in self.bottom:
+                viz_tri.set_color('g')
             viz_tri.set_edgecolor('k')
             self.ax.add_collection3d(viz_tri)
 
@@ -197,6 +202,59 @@ class Blob:
             else:
                 return False
 
+    def flip_and_add_both(self,t1, t2):
+        if self.flip_triangs(t1, t2):
+            if t1 in self.neck:
+                del self.neck[t1]
+            if t2 in self.neck:
+                del self.neck[t2]
+            # make sure triangles are not in top or bottom
+            if t1 in self.top:
+                del self.top[t1]
+            if t1 in self.bottom:
+                del self.bottom[t1]
+            if t2 in self.top:
+                del self.top[t2]
+            if t2 in self.bottom:
+                del self.bottom[t2]
+            new_t1, new_t2 = expected_flip(t1, t2)
+            self.neck[new_t1] = self.triangles[new_t1]
+            self.neck[new_t2] = self.triangles[new_t2]
+            return True
+        else:
+            return False
+
+    def bfs(self, queue, collection):
+        if queue == []:
+            return collection
+        new_queue = []
+        for tr in queue:
+            ns = self.adj[tr]
+            for n in ns:
+                if  (n not in self.neck) and \
+                    (n not in collection) and \
+                    (n not in queue) and \
+                    (n not in new_queue):
+                    new_queue.append(n)
+            collection[tr] = ns
+        return self.bfs(new_queue, collection)
+
+
+    def initialize_halves(self):
+        n1 = next(iter(self.neck.keys()))
+        t1 = [n for n in self.adj[n1] if n not in self.neck][0]
+        n2 = [n for n in self.adj[n1] if n in self.neck][0]
+        t2 = [n for n in self.adj[n2] if n not in self.neck][0]
+        top_half = self.bfs([t1],{})
+        bottom_half = self.bfs([t2],{})
+        return top_half, bottom_half
+
+
+#    def count_both_sides(self):
+#        tris = [t for t in self.triangles.keys() if t not in self.neck]
+#
+#        return 10
+
 def expected_flip(t1, t2):
     v1, v2, shared = get_opposite_verts(t1, t2)
     new_t1 = tuple(sorted([v1,v2,shared[0]]))
@@ -261,7 +319,6 @@ def are_neighbors(t1, t2):
     else:
         return False
 
-# not optimized
 def make_adjacency_graph(ts):
     tis = sorted(ts.keys())
     neighbors = {t:[] for t in tis}
