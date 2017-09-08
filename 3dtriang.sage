@@ -16,6 +16,7 @@ class Blob:
             self.t = self.t + 1
         self.n = n
         # probability of allowing flips INTO top
+        # probability of allowing flips out of top = 1-prob_top
         self.prob_top = 1.0
         # prob of allowing flips into bottom
         self.prob_bottom = 0.2
@@ -157,14 +158,14 @@ class Blob:
 
         # CASE 2: only remaining case: one in out out, flip one into neck
         elif ((t1 in self.neck) and (t2 not in self.neck)) and rule(3):
-            if t2 in self.top and random() <= self.prob_top:
+            if t2 in self.top and random() <= (1.0-self.prob_top):
                 self.flip_into_neck(t1, t2)
-            elif random() <= self.prob_bottom:
+            elif random() <= (1.0 - self.prob_bottom):
                 self.flip_into_neck(t1, t2)
         elif ((t2 in self.neck) and (t1 not in self.neck)) and rule(3):
-            if t1 in self.top and random() <= self.prob_top:
+            if t1 in self.top and random() <= (1.0-self.prob_top):
                 self.flip_into_neck(t2, t1)
-            elif random() <= self.prob_bottom:
+            elif random() <= (1.0-self.prob_bottom):
                 self.flip_into_neck(t2, t1)
 
     def flip_into_neck(self, nt, t):
