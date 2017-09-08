@@ -118,7 +118,18 @@ class Blob:
 
         # CASE 0: allow all flips that do not affect neck
         if (t1 not in self.neck) and (t2 not in self.neck):
-            self.flip_triangs(t1, t2)
+            if self.flip_triangs(t1, t2):
+                new_t1, new_t2 = expected_flip(t1,t2)
+                if t1 in self.top:
+                    del self.top[t1]
+                    del self.top[t2]
+                    self.top[new_t1] = self.adj[new_t1]
+                    self.top[new_t2] = self.adj[new_t2]
+                else:
+                    del self.bottom[t1]
+                    del self.bottom[t2]
+                    self.bottom[new_t1] = self.adj[new_t1]
+                    self.bottom[new_t2] = self.adj[new_t2]
 
         # CASE 1: flip two triangles in neck
         # two sub cases
@@ -149,7 +160,21 @@ class Blob:
             elif random() <= self.prob_bottom:
                 self.flip_into_neck(t1, t2)
         elif ((t2 in self.neck) and (t1 not in self.neck)) and rule(3):
-            self.flip_into_neck(t2, t1)
+            if t1 in self.top and random() <= self.prob_top:
+                self.flip_into_neck(t2, t1)
+            elif random() <= self.prob_bottom:
+                self.flip_into_neck(t2, t1)
+
+    def flip_into_neck(self, nt, t):
+        ns = [n for n in self.adj[t] if n in self.neck and n != nt]
+        #check that only one neighbor is in neck
+        if len(ns) == 0:
+            if t in self.top:
+                if self.flip_and_add_both(nt, t):
+                    self.k = self.k + 1
+            else:
+                if self.flip_and_add_both(nt, t):
+                    self.k = self.k + 1
 
     def flip_out_of_neck(self, t1, t2, common):
         if self.flip_triangs(t1, t2):
@@ -157,6 +182,7 @@ class Blob:
             del self.neck[t1]
             del self.neck[t2]
             self.k = self.k - 1
+            new_t1, new_t2 = expected_flip(t1,t2)
             if common[0] in new_t1:
                 new_neck_triangle = new_t1
                 new_body_triangle = new_t2
@@ -171,21 +197,6 @@ class Blob:
                 self.top[new_body_triangle] = self.triangles[new_body_triangle]
             else:
                 self.bottom[new_body_triangle] = self.triangles[new_body_triangle]
-
-
-
-    def flip_into_neck(self, nt, t):
-        ns = [n for n in self.adj[t] if n in self.neck and n != nt]
-        #check that only one neighbor is in neck
-        if len(ns) == 0:
-            if t in self.top:
-                if self.flip_and_add_both(nt, t):
-                    self.k = self.k + 1
-                    del self.top[t]
-            else:
-                if self.flip_and_add_both(nt, t):
-                    self.k = self.k + 1
-                    del self.bottom[t]
 
 
     def flip_triangs(self, t1, t2):
@@ -223,14 +234,14 @@ class Blob:
                 del self.neck[t1]
                 if t2 in self.top:
                     del self.top[t2]
-                else:
+                if t2 in self.bottom:
                     del self.bottom[t2]
             if t2 in self.neck:
                 del self.neck[t2]
                 # make sure triangles are not in top or bottom
                 if t1 in self.top:
                     del self.top[t1]
-                else:
+                if t1 in self.bottom:
                     del self.bottom[t1]
             new_t1, new_t2 = expected_flip(t1, t2)
             self.neck[new_t1] = self.triangles[new_t1]
@@ -343,13 +354,10 @@ def make_adjacency_graph(ts):
                 neighbors[t].append(s)
     return neighbors
 
-# TODO: see if we can access neighbors of triangles
-# def count_both_sides(conv_hull):
-#     c_hull = sort(conv_hull)
 
 
 b = Blob()
-c = Blob(200)
+c = Blob(100)
 
 def plot_count(xdat, ydat, count="", title="", label=""):
     plt.figure()
