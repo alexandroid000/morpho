@@ -78,9 +78,9 @@ class Blob:
             if tr in self.neck:
                 viz_tri.set_color('r')
             if tr in self.top:
-                viz_tri.set_color('b')
-            if tr in self.bottom:
                 viz_tri.set_color('g')
+            if tr in self.bottom:
+                viz_tri.set_color('b')
             viz_tri.set_edgecolor('k')
             self.ax.add_collection3d(viz_tri)
 
@@ -364,8 +364,9 @@ c = Blob(100)
 
 def plot_count(xdat, ydats, count="", title="", label=""):
     plt.figure()
-    for (y, labl) in ydats:
-        plt.plot(xdat, y, '-o', label=labl)
+    colors = ['r','g','b']
+    for ((y, labl), col) in zip(ydats, colors):
+        plt.plot(xdat, y, '-o', label=labl, color=col)
     plt.title(title)
     plt.xlabel(count)
     legend = plt.legend(loc='upper left')
