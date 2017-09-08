@@ -15,11 +15,10 @@ class Blob:
         if mod(self.t,2) != 0:
             self.t = self.t + 1
         self.n = n
-        # probability of allowing flips INTO top
-        # probability of allowing flips out of top = 1-prob_top
+        # probability of allowing flips INTO top or out of bottom
         self.prob_top = 1.0
-        # prob of allowing flips into bottom
-        self.prob_bottom = 0.2
+        # prob of allowing flips into bottom or out of top
+        self.prob_bottom = 0.0
         # "height" of neck (should be less than 0.5)
         self.delz = 0.2
         self.neck = {}
@@ -32,7 +31,7 @@ class Blob:
 
         for tr in self.triangles.keys():
             if (tr[0] <= 2*self.t and tr[1] <= 2*self.t and tr[2] <= 2*self.t):
-                self.neck[tr] = self.triangles[tr]
+                self.neck[tr] = self.adj[tr]
 
         self.k = len(self.neck)
         self.l = 0
@@ -122,7 +121,6 @@ class Blob:
         # CASE 0: allow all flips that do not affect neck
         if (t1 not in self.neck) and (t2 not in self.neck):
             if self.flip_triangs(t1, t2):
-                new_t1, new_t2 = expected_flip(t1,t2)
                 if t1 in self.top:
                     del self.top[t1]
                     del self.top[t2]
@@ -149,8 +147,11 @@ class Blob:
                 # SUBCASE 1: flip one triangle out of neck
                 elif len(common) == 1 and rule(2):
                     if ns1[0] in self.top and random() <= self.prob_top:
+                        print "flip into top"
                         self.flip_out_of_neck(t1, t2, common)
-                    elif random() <= self.prob_bottom:
+                    elif   ((ns1[0] in self.bottom) and 
+                            (random() <= self.prob_bottom)):
+                        print "flip into bottom"
                         self.flip_out_of_neck(t1, t2, common)
 
             else:
@@ -158,14 +159,18 @@ class Blob:
 
         # CASE 2: only remaining case: one in out out, flip one into neck
         elif ((t1 in self.neck) and (t2 not in self.neck)) and rule(3):
-            if t2 in self.top and random() <= (1.0-self.prob_top):
+            if t2 in self.top and random() <= self.prob_bottom:
+                print "flip out of top"
                 self.flip_into_neck(t1, t2)
-            elif random() <= (1.0 - self.prob_bottom):
+            elif (t2 in self.bottom) and random() <= self.prob_top:
+                print "flip out of bottom"
                 self.flip_into_neck(t1, t2)
         elif ((t2 in self.neck) and (t1 not in self.neck)) and rule(3):
-            if t1 in self.top and random() <= (1.0-self.prob_top):
+            if t1 in self.top and random() <= self.prob_bottom:
                 self.flip_into_neck(t2, t1)
-            elif random() <= (1.0-self.prob_bottom):
+                print "flip out of top"
+            elif (t1 in self.bottom) and random() <= self.prob_bottom:
+                print "flip out of bottom"
                 self.flip_into_neck(t2, t1)
 
     def flip_into_neck(self, nt, t):
@@ -175,9 +180,11 @@ class Blob:
             if t in self.top:
                 if self.flip_and_add_both(nt, t):
                     self.k = self.k + 1
+                    del self.top[t]
             else:
                 if self.flip_and_add_both(nt, t):
                     self.k = self.k + 1
+                    del self.bottom[t]
 
     def flip_out_of_neck(self, t1, t2, common):
         if self.flip_triangs(t1, t2):
@@ -187,19 +194,19 @@ class Blob:
             self.k = self.k - 1
             new_t1, new_t2 = expected_flip(t1,t2)
             if common[0] in new_t1:
-                new_neck_triangle = new_t1
-                new_body_triangle = new_t2
-            else:
                 new_neck_triangle = new_t2
                 new_body_triangle = new_t1
+            else:
+                new_neck_triangle = new_t1
+                new_body_triangle = new_t2
 
-            self.neck[new_neck_triangle] = self.triangles[new_neck_triangle]
+            self.neck[new_neck_triangle] = self.adj[new_neck_triangle]
             ns = [n for n in self.adj[new_body_triangle]
                     if n not in self.neck]
             if ns[0] in self.top:
-                self.top[new_body_triangle] = self.triangles[new_body_triangle]
+                self.top[new_body_triangle] = self.adj[new_body_triangle]
             else:
-                self.bottom[new_body_triangle] = self.triangles[new_body_triangle]
+                self.bottom[new_body_triangle] = self.adj[new_body_triangle]
 
 
     def flip_triangs(self, t1, t2):
@@ -235,20 +242,11 @@ class Blob:
         if self.flip_triangs(t1, t2):
             if t1 in self.neck:
                 del self.neck[t1]
-                if t2 in self.top:
-                    del self.top[t2]
-                if t2 in self.bottom:
-                    del self.bottom[t2]
             if t2 in self.neck:
                 del self.neck[t2]
-                # make sure triangles are not in top or bottom
-                if t1 in self.top:
-                    del self.top[t1]
-                if t1 in self.bottom:
-                    del self.bottom[t1]
             new_t1, new_t2 = expected_flip(t1, t2)
-            self.neck[new_t1] = self.triangles[new_t1]
-            self.neck[new_t2] = self.triangles[new_t2]
+            self.neck[new_t1] = self.adj[new_t1]
+            self.neck[new_t2] = self.adj[new_t2]
             return True
         else:
             return False
