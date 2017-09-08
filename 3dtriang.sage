@@ -16,6 +16,7 @@ class Blob:
             self.t = self.t + 1
         self.n = n
         self.prob_top = 1.0
+        self.prob_bottom = 0.2
         # "height" of neck (should be less than 0.5)
         self.delz = 0.2
         self.neck = {}
@@ -89,6 +90,8 @@ class Blob:
         plt.show()
         plt.close()
 
+    def allow(self, case):
+        return True
 
     def global_cache(self, case):
         # reconfigure inside neck
@@ -133,12 +136,18 @@ class Blob:
                 elif len(common) == 1 and rule(2):
                     if ns1[0] in self.top and random() <= self.prob_top:
                         self.flip_out_of_neck(t1, t2, common)
+                    elif random() <= self.prob_bottom:
+                        self.flip_out_of_neck(t1, t2, common)
+
             else:
                 print("more than two neighbors of a diamond are in the neck")
 
         # CASE 2: only remaining case: one in out out, flip one into neck
         elif ((t1 in self.neck) and (t2 not in self.neck)) and rule(3):
-            self.flip_into_neck(t1, t2)
+            if t2 in self.top and random() <= self.prob_top:
+                self.flip_into_neck(t1, t2)
+            elif random() <= self.prob_bottom:
+                self.flip_into_neck(t1, t2)
         elif ((t2 in self.neck) and (t1 not in self.neck)) and rule(3):
             self.flip_into_neck(t2, t1)
 
@@ -149,19 +158,35 @@ class Blob:
             del self.neck[t2]
             self.k = self.k - 1
             if common[0] in new_t1:
-                self.neck[new_t1] = self.triangles[new_t1]
-                ns = [n for n in self.adj[new_t2]
-                        if n not in self.neck]
-
+                new_neck_triangle = new_t1
+                new_body_triangle = new_t2
             else:
-                self.neck[new_t2] = self.triangles[new_t2]
+                new_neck_triangle = new_t2
+                new_body_triangle = new_t1
+
+            self.neck[new_neck_triangle] = self.triangles[new_neck_triangle]
+            ns = [n for n in self.adj[new_body_triangle]
+                    if n not in self.neck]
+            if ns[0] in self.top:
+                self.top[new_body_triangle] = self.triangles[new_body_triangle]
+            else:
+                self.bottom[new_body_triangle] = self.triangles[new_body_triangle]
+
+
 
     def flip_into_neck(self, nt, t):
         ns = [n for n in self.adj[t] if n in self.neck and n != nt]
         #check that only one neighbor is in neck
         if len(ns) == 0:
-            if self.flip_and_add_both(nt, t):
-                self.k = self.k + 1
+            if t in self.top:
+                if self.flip_and_add_both(nt, t):
+                    self.k = self.k + 1
+                    del self.top[t]
+            else:
+                if self.flip_and_add_both(nt, t):
+                    self.k = self.k + 1
+                    del self.bottom[t]
+
 
     def flip_triangs(self, t1, t2):
         v1, v2, shared = get_opposite_verts(t1, t2)
@@ -196,17 +221,17 @@ class Blob:
         if self.flip_triangs(t1, t2):
             if t1 in self.neck:
                 del self.neck[t1]
+                if t2 in self.top:
+                    del self.top[t2]
+                else:
+                    del self.bottom[t2]
             if t2 in self.neck:
                 del self.neck[t2]
-            # make sure triangles are not in top or bottom
-            if t1 in self.top:
-                del self.top[t1]
-            if t1 in self.bottom:
-                del self.bottom[t1]
-            if t2 in self.top:
-                del self.top[t2]
-            if t2 in self.bottom:
-                del self.bottom[t2]
+                # make sure triangles are not in top or bottom
+                if t1 in self.top:
+                    del self.top[t1]
+                else:
+                    del self.bottom[t1]
             new_t1, new_t2 = expected_flip(t1, t2)
             self.neck[new_t1] = self.triangles[new_t1]
             self.neck[new_t2] = self.triangles[new_t2]
@@ -339,7 +364,7 @@ def do_movement(blob, n, viz = False):
     for i in range(n):
         if i%100 == 0:
             print i
-        res = blob.make_flip(blob.allow)
+        blob.make_flip(blob.allow)
         neck_len[i] = blob.k
 
     plot_count(range(n), neck_len, "Neck length", label="neck_len_n"+str(n))
