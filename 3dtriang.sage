@@ -15,7 +15,9 @@ class Blob:
         if mod(self.t,2) != 0:
             self.t = self.t + 1
         self.n = n
+        # probability of allowing flips INTO top
         self.prob_top = 1.0
+        # prob of allowing flips into bottom
         self.prob_bottom = 0.2
         # "height" of neck (should be less than 0.5)
         self.delz = 0.2
@@ -359,58 +361,33 @@ def make_adjacency_graph(ts):
 b = Blob()
 c = Blob(100)
 
-def plot_count(xdat, ydat, count="", title="", label=""):
+def plot_count(xdat, ydats, count="", title="", label=""):
     plt.figure()
-    plt.plot(xdat, ydat, '-o')
+    for (y, labl) in ydats:
+        plt.plot(xdat, y, '-o', label=labl)
     plt.title(title)
     plt.xlabel(count)
+    legend = plt.legend(loc='upper left')
     plt.savefig(label+".pdf", bbox_inches='tight')
     #plt.show()
 
 def do_movement(blob, n, viz = False):
     neck_len = [0]*n
+    top_size = [0]*n
+    bottom_size = [0]*n
     for i in range(n):
         if i%100 == 0:
             print i
         blob.make_flip(blob.allow)
         neck_len[i] = blob.k
+        top_size[i] = len(blob.top)
+        bottom_size[i] = len(blob.bottom)
 
-    plot_count(range(n), neck_len, "Neck length", label="neck_len_n"+str(n))
+    plot_count(range(n), [(neck_len, "neck"), (top_size, "top"), (bottom_size,
+    "bottom")], "Triangles over time", label="neck_len_n"+str(n))
     if viz:
         blob.show()
 
-      
+   
 
 
-    # recursively try to nudge one vertex at a time until we get a good flip
-#    def try_perturbation(self):
-#        ch1 = sorted(self.triangles)
-#        pert_pts = move_vert(pts)
-#        tr2 = Delaunay(pert_pts)
-#        ch2 = np.sort(tr2.convex_hull, axis=0)
-#        if convex_hull_contains_flip(ch1, ch2):
-#            return pert_pts
-#        else:
-#            return pert_pts
-#            #return try_perturbation(pts)
-
-## given a vertex, perturb it in a random direction (proportional to epsilon)
-## the returned vertex will still be on unit sphere
-#def perturb_one(i, verts, epsilon = 0.05):
-#    rand_pt = [ uniform(-epsilon,epsilon),
-#                uniform(-epsilon,epsilon),
-#                uniform(-epsilon,epsilon)]
-#    perturb = [xi + eps for (xi, eps) in zip(verts[i], rand_pt)]
-#    norm = sum([i**2 for i in perturb])
-#    rand_pt = [i/norm for i in perturb]
-#    return rand_pt
-#
-## move one random vertex in a random direction by 1/10 the average inter-vertex
-## radius
-#def move_vert(verts):
-#    n = len(verts)
-#    i = randrange(0, n)
-#    avg_rad = N(2/sqrt(n))
-#    eps = 0.1*avg_rad
-#    verts[i] = perturb_one(i, verts, eps)
-#    return verts
