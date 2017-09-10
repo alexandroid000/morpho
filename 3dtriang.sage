@@ -163,30 +163,25 @@ class Blob:
         elif ((t1 in self.neck) and (t2 not in self.neck)) and rule(3):
             if t2 in self.top and random() <= self.prob_bottom:
 #                print "flip out of top"
-                self.flip_into_neck(t1, t2)
+                self.flip_into_neck(t1, t2, self.top)
             elif (t2 in self.bottom) and random() <= self.prob_top:
 #                print "flip out of bottom"
-                self.flip_into_neck(t1, t2)
+                self.flip_into_neck(t1, t2, self.bottom)
         elif ((t2 in self.neck) and (t1 not in self.neck)) and rule(3):
             if t1 in self.top and random() <= self.prob_bottom:
-                self.flip_into_neck(t2, t1)
+                self.flip_into_neck(t2, t1, self.top)
 #                print "flip out of top"
             elif (t1 in self.bottom) and random() <= self.prob_bottom:
 #                print "flip out of bottom"
-                self.flip_into_neck(t2, t1)
+                self.flip_into_neck(t2, t1, self.bottom)
 
-    def flip_into_neck(self, nt, t):
+    def flip_into_neck(self, nt, t, origin):
         ns = [n for n in self.adj[t] if n in self.neck and n != nt]
         #check that only one neighbor is in neck
         if len(ns) == 0:
-            if t in self.top:
-                if self.flip_and_add_both(nt, t):
-                    self.k = self.k + 1
-                    del self.top[t]
-            else:
-                if self.flip_and_add_both(nt, t):
-                    self.k = self.k + 1
-                    del self.bottom[t]
+            if self.flip_and_add_both(nt, t):
+                self.k = self.k + 1
+                del origin[t]
 
     def flip_out_of_neck(self, t1, t2, common):
         if self.flip_triangs(t1, t2):
