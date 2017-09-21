@@ -39,6 +39,8 @@ class Blob:
         self.ax = self.fig.add_subplot(111, projection='3d')
         self.top, self.bottom = self.initialize_halves()
 
+        self.flip = self.flip_triangs
+
     def update_triangulation(self, pts):
         self.pts = pts
         self.delauney = Delaunay(self.pts)
@@ -121,7 +123,7 @@ class Blob:
 
         # CASE 0: allow all flips that do not affect neck
         if (t1 not in self.neck) and (t2 not in self.neck):
-            if self.flip_triangs(t1, t2):
+            if self.flip(t1, t2):
                 if t1 in self.top:
                     del self.top[t1]
                     del self.top[t2]
@@ -184,7 +186,7 @@ class Blob:
                 del origin[t]
 
     def flip_out_of_neck(self, t1, t2, common):
-        if self.flip_triangs(t1, t2):
+        if self.flip(t1, t2):
 #            print "flip one out of neck"
             del self.neck[t1]
             del self.neck[t2]
@@ -205,8 +207,19 @@ class Blob:
             else:
                 self.bottom[new_body_triangle] = self.adj[new_body_triangle]
 
-
     def flip_triangs(self, t1, t2):
+        v1, v2, shared = get_opposite_verts(t1, t2)
+        p1, p2 = self.pts[v1], self.pts[v2]
+        del self.triangles[t1]
+        del self.triangles[t2]
+        tr1 = tuple(sorted([v1, v2, shared[0]]))
+        tr2 = tuple(sorted([v1, v2, shared[1]]))
+        self.triangles[tr1] = np.array([list(self.pts[i]) for i in tr1])
+        self.triangles[tr2] = np.array([list(self.pts[i]) for i in tr2])
+        self.adj = make_adjacency_graph(self.triangles)
+        return True
+
+    def flip_triangs_w_perturbation(self, t1, t2):
         v1, v2, shared = get_opposite_verts(t1, t2)
         p1, p2 = self.pts[v1], self.pts[v2]
         vect = p2-p1
@@ -223,7 +236,7 @@ class Blob:
 
         if ch1 == ch2:
             self.update_triangulation(pts_new)
-            return self.flip_triangs(t1, t2)
+            return self.flip_triangs_w_perturbation(t1, t2)
         else:
             # check if we flipped the triangles we expected to
             new_t1, new_t2 = expected_flip(t1, t2)
@@ -236,7 +249,7 @@ class Blob:
                 return False
 
     def flip_and_add_both(self,t1, t2):
-        if self.flip_triangs(t1, t2):
+        if self.flip(t1, t2):
             if t1 in self.neck:
                 del self.neck[t1]
             if t2 in self.neck:
