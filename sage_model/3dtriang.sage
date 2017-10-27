@@ -117,7 +117,6 @@ class Blob:
     # we get a flip
     def make_flip(self, rule):
         t1 = choice(self.adj.keys())
-#        t1 = choice(self.neck.keys())
         t2 = choice(self.adj[t1])
         new_t1, new_t2 = expected_flip(t1, t2)
 
@@ -216,6 +215,7 @@ class Blob:
         tr2 = tuple(sorted([v1, v2, shared[1]]))
         self.triangles[tr1] = np.array([list(self.pts[i]) for i in tr1])
         self.triangles[tr2] = np.array([list(self.pts[i]) for i in tr2])
+        print len(self.triangles)
         self.adj = make_adjacency_graph(self.triangles)
         return True
 
