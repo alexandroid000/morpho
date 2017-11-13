@@ -2,6 +2,7 @@ import numpy as np
 from scipy.spatial import Delaunay, ConvexHull
 import matplotlib.pyplot as plt
 from itertools import combinations
+from functools import cmp_to_key
 from copy import copy
 import random
 
@@ -12,25 +13,88 @@ def random_points(n):
 
 def make_triangulation(n):
     pts = random_points(n)
-    ch = ConvexHull(pts).vertices
-    return Delaunay(pts), ch
+    return Delaunay(pts)
 
-def make_oriented_adj(n, d, ch):
-#    (ind, indptr) = d.vertex_neighbor_vertices
-#    adj = [indptr[ind[k]:ind[k+1]] for k in range(n)]
-#    return adj
-    adj = {}
-    # initialize convex hull
-    for (i,j,k) in list(zip(ch, ch[1:],ch[2:])) + [(ch[-2],ch[-1],ch[0]),
-                                                   (ch[-1],ch[0],ch[1])]:
-        adj[j] = [k,i]
+def flatten(lofl):
+    return [l for lelem in lofl for l in lelem]
 
-    for [i,j,k] in d.simplices:
-        if (i or j or k) not in ch:
-            adj = check_triangle((i,j,k), adj)
-            adj = check_triangle((j,k,i), adj)
-            adj = check_triangle((k,i,j), adj)
+def make_oriented_adj(n):
+    d = make_triangulation(n)
+    pts = d.points
+    ch = flatten(d.convex_hull)
+    adj = {i:d.neighbors[i] for i in range(n)}
     return adj
+
+
+# return true iff a is clockwise of b, with c as the center
+# if points are collinear ones further from center will be "less"
+# positive x axis is "zero"
+# https://stackoverflow.com/questions/6989100/sort-points-in-clockwise-order
+def less(a, b, center):
+    (ax, ay), (bx, by), (cx, cy) = a, b, center
+
+    # check easy cases first
+    if (ax-cx >= 0) and (bx-cx < 0):
+        return True
+    elif (ax-cx < 0) and (bx-cx >= 0):
+        return False
+    elif (ax-cx == 0.0) and (bx-cx == 0.0):
+        if (ay-cy >= 0) or (by-cy >= 0):
+            return ay > by
+        return by > ay
+
+    det = (ax-cx)*(by-cy)-(bx-cx)*(ay-cy)
+
+    if det < 0.0:
+        return True
+    elif det > 0.0:
+        return False
+
+    d1 = (ax-cx)*(ax-cx) + (ay-cy)*(ay-cy)
+    d2 = (bx-cx)*(bx-cx) + (by-cy)*(by-cy)
+    return d1 > d2
+
+# python sorting quirks - requires numerical value
+def less_cmp(a, b, center):
+    if less(a,b,center):
+        return 1.0
+    else:
+        return -1.0
+
+
+def sort_neighbors(v1, neighbors):
+    v_cmp = lambda a,b: less_cmp(a,b,v1)
+    ccw_neighbors = sorted(neighbors, key=cmp_to_key(v_cmp))
+    return ccw_neighbors
+
+
+def order_neighbors(ordered, neighbors):
+    print("ordered is ", ordered)
+    print("neighbors is ", neighbors)
+    if neighbors == []:
+        return ordered
+    else:
+        [j,k] = random.choice(neighbors)
+        found_adj = False
+        o2 = []
+        for [l,m] in ordered:
+            if k == l:
+                o2.append([j,k])
+                o2.append([l,m])
+                found_adj = True
+            elif m == j:
+                o2.append([l,m])
+                o2.append([j,k])
+                found_adj = True
+            else:
+                o2.append([l,m])
+        if found_adj:
+            ordered = copy(o2)
+            neighbors.remove([j,k])
+
+#        return order_neighbors(ordered, neighbors)
+
+
 
 # TODO: there has to be some better algebraic structure here
 # use CCW ordering of simplices to order neighbors
