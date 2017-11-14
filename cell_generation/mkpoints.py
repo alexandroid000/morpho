@@ -18,23 +18,8 @@ def make_triangulation(n):
 def flatten(lofl):
     return [l for lelem in lofl for l in lelem]
 
-# python library bookkeeping
-# returns adjacency graph, but neighbors are unordered
-def get_neighbor_vertices(d):
-    (indices, indptr) = d.vertex_neighbor_vertices
-    ns = {}
-    for i in range(d.npoints):
-        v = (i, tuple(d.points[i]))
-        n_inds = indptr[indices[i]:indices[i+1]]
-        n_pts = [(i, tuple(d.points[i])) for i in n_inds]
-        ns[v] = n_pts
-    return ns
-
-def make_oriented_adj(d):
-    pts = d.points
-    ch = flatten(d.convex_hull)
-    return get_neighbor_vertices(d)
-
+def rotate(l, i):
+        return l[i:] + l[:i]
 
 
 # return true iff a is clockwise of b, with c as the center
@@ -68,16 +53,37 @@ def less(a, b, center):
 
 # python sorting quirks - requires numerical value
 def less_cmp(a, b, center):
-    if less(a,b,center):
+    (i, an), (j, bn), (k, cn) = a, b, center
+    if less(an, bn, cn):
         return 1.0
     else:
         return -1.0
-
 
 def sort_neighbors(v1, neighbors):
     v_cmp = lambda a,b: less_cmp(a,b,v1)
     ccw_neighbors = sorted(neighbors, key=cmp_to_key(v_cmp))
     return ccw_neighbors
+
+# python library bookkeeping
+# returns adjacency graph, but neighbors are unordered
+def get_neighbor_vertices(d):
+    (indices, indptr) = d.vertex_neighbor_vertices
+    ns = {}
+    for i in range(d.npoints):
+        v = (i, tuple(d.points[i]))
+        n_inds = indptr[indices[i]:indices[i+1]]
+        n_pts = sort_neighbors(v, [(i, tuple(d.points[i])) for i in n_inds])
+        ns[v] = n_pts
+    return ns
+
+def make_oriented_adj(d):
+    pts = d.points
+    ch = flatten(d.convex_hull)
+    return get_neighbor_vertices(d)
+
+
+
+
 
 def plot_tri(d):
     plt.triplot(d.points[:,0], d.points[:,1], d.simplices.copy())
@@ -90,8 +96,13 @@ def write_adj(n):
     d = make_triangulation(n)
     adj = make_oriented_adj(d)
 
-    print(adj)
+    for v in adj:
+        i,pt = v
+        ns = [ip for (ip, pts) in adj[v]]
+        print(i)
+        print("\t",ns)
 
+    plot_tri(d)
 #    alpha = 0
 #    for i in range(n):
 #        if i not in ch:
