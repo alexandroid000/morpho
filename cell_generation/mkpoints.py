@@ -29,16 +29,6 @@ def rotate(l, i):
 def less(a, b, center):
     (ax, ay), (bx, by), (cx, cy) = a, b, center
 
-    # check easy cases first
-    if (ax-cx >= 0) and (bx-cx < 0):
-        return True
-    elif (ax-cx < 0) and (bx-cx >= 0):
-        return False
-    elif (ax-cx == 0.0) and (bx-cx == 0.0):
-        if (ay-cy >= 0) or (by-cy >= 0):
-            return ay > by
-        return by > ay
-
     det = (ax-cx)*(by-cy)-(bx-cx)*(ay-cy)
 
     if det < 0.0:
@@ -86,17 +76,18 @@ def make_oriented_adj(d):
             print(i+1, " neighbors are ", n1+1, n2+1)
 
             # rotate until "smaller" (more cw) point is first in list
-            a, b = d.points[n1], d.points[n2]
-            if less(a, b, d.points[i]):
-                print("before rotation: ",[k for (k,pt) in n_pts])
-                print("rotate by ", n1)
-                n_pts = rotate(n_pts, n1)
-                print("after rotation: ",[k for (k,pt) in n_pts])
+            # TODO: logic is broken
+            a, b = tuple(d.points[n1]), tuple(d.points[n2])
+            if less(a,b,v) and (n_pts[0] != (n1,a)):
+                r1 = n_pts.index((n1, a))
+            elif (not less(a,b,v)) and (n_pts[0] != (n2,b)):
+                r1 = n_pts.index((n2, b))
             else:
-                print("before rotation: ",[k for (k,pt) in n_pts])
-                print("rotate by ", n2)
-                n_pts = rotate(n_pts, n2)
-                print("after rotation: ",[k for (k,pt) in n_pts])
+                r1 = 0
+            print("before rotation: ",[k+1 for (k,pt) in n_pts])
+            print("rotate by ", r1)
+            n_pts = rotate(n_pts, r1)
+            print("after rotation: ",[k+1 for (k,pt) in n_pts])
 
         ns[i] = n_pts
     return ns
