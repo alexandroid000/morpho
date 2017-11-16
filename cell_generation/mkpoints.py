@@ -78,9 +78,11 @@ def make_oriented_adj(d):
             # rotate until "smaller" (more cw) point is first in list
             # TODO: logic is broken
             a, b = tuple(d.points[n1]), tuple(d.points[n2])
-            if less(a,b,v) and (n_pts[0] != (n1,a)):
+            if less(b,a,v) and (n_pts[0] != (n1,a)):
+                print(n1+1, " is less than ", n2+1)
                 r1 = n_pts.index((n1, a))
-            elif (not less(a,b,v)) and (n_pts[0] != (n2,b)):
+            elif (not less(b,a,v)) and (n_pts[0] != (n2,b)):
+                print(n2+1, " is less than ", n1+1)
                 r1 = n_pts.index((n2, b))
             else:
                 r1 = 0
