@@ -69,34 +69,32 @@ def make_oriented_adj(d):
         n_pts = sort_neighbors(v, [(i, tuple(d.points[i])) for i in n_is])
 
         if (i in ch_vis) and (d.npoints != 3):
-            print(i+1, " is in ch")
             ch_neighbors = [(j, tuple(d.points[j])) for j in n_is if j in ch_vis]
             ch_ns = [k for (k,pt) in sort_neighbors(d.points[i], ch_neighbors)]
             n1, n2 = ch_ns[0], ch_ns[-1]
-            print(i+1, " neighbors are ", n1+1, n2+1)
 
             # rotate until "smaller" (more cw) point is first in list
-            # TODO: logic is broken
             a, b = tuple(d.points[n1]), tuple(d.points[n2])
             if less(b,a,v) and (n_pts[0] != (n1,a)):
-                print(n1+1, " is less than ", n2+1)
+#                print(i+1, " is in ch")
+#                print(i+1, " neighbors are ", n1+1, n2+1)
+#                print(n1+1, " is less than ", n2+1)
                 r1 = n_pts.index((n1, a))
+#                print("before rotation: ",[k+1 for (k,pt) in n_pts])
             elif (not less(b,a,v)) and (n_pts[0] != (n2,b)):
-                print(n2+1, " is less than ", n1+1)
+#                print(i+1, " is in ch")
+#                print(i+1, " neighbors are ", n1+1, n2+1)
+#                print(n2+1, " is less than ", n1+1)
                 r1 = n_pts.index((n2, b))
+#                print("before rotation: ",[k+1 for (k,pt) in n_pts])
             else:
                 r1 = 0
-            print("before rotation: ",[k+1 for (k,pt) in n_pts])
-            print("rotate by ", r1)
+#            print("rotate by ", r1)
             n_pts = rotate(n_pts, r1)
-            print("after rotation: ",[k+1 for (k,pt) in n_pts])
+#            print("after rotation: ",[k+1 for (k,pt) in n_pts])
 
         ns[i] = n_pts
     return ns
-
-
-d = make_triangulation(10)
-adj = make_oriented_adj(d)
 
 
 def plot_tri(d):
@@ -108,37 +106,39 @@ def plot_tri(d):
 
 def write_adj(n):
     d = make_triangulation(n)
+    ch = np.unique(d.convex_hull)
     adj = make_oriented_adj(d)
-    print(adj)
 
+#    for i in range(n):
+#        ns = [ip+1 for (ip, pts) in adj[i]]
+#        print(i+1)
+#        print("\t",ns)
+
+    alpha = 0
     for i in range(n):
-        ns = [ip+1 for (ip, pts) in adj[i]]
-        print(i+1)
-        print("\t",ns)
+        if i not in ch:
+            alpha = i
+            break
 
+    gamma = adj[alpha][0][0] + 1
+    alpha += 1
+
+    outfile = "NODECOUNT: "+str(n)+"\n"
+    outfile += "GEOMETRY: euclidean\n"
+    outfile += "ALPHA/BETA/GAMMA: "+str(alpha)+" "+str(gamma)+"\n"
+    outfile += "PACKNAME: test.p\n"
+    outfile += "FLOWERS:\n"
+    for i in range(n):
+        if i in ch:
+            outfile += str(i+1) + " " + str(len(adj[i])-1) + "\t"
+            outfile += "".join([str(j+1)+" " for (j,pt) in adj[i]])
+        else:
+            outfile += str(i+1) + " " + str(len(adj[i])) + "\t"
+            outfile += "".join([str(j+1)+" " for (j,pt) in adj[i]])
+            outfile += str(adj[i][0][0]+1)
+        outfile += "\n"
+    outfile += "\nEND"
+    print(outfile)
+    with open("random_"+str(n)+".p",'w') as f:
+        f.write(outfile)
     plot_tri(d)
-#    alpha = 0
-#    for i in range(n):
-#        if i not in ch:
-#            alpha = i
-#            break
-#
-#    alpha += 1
-#    gamma = adj[alpha-1][0] + 1
-#
-#    outfile = "NODECOUNT: "+str(n)+"\n"
-#    outfile += "GEOMETRY: euclidean\n"
-#    outfile += "ALPHA/BETA/GAMMA: "+str(alpha)+" "+str(gamma)+"\n"
-#    outfile += "PACKNAME: test.p\n"
-#    outfile += "FLOWERS:\n"
-#    for i in range(n):
-#        if i in ch:
-#            outfile += str(i+1) + " " + str(len(adj[i])-1) + "\t"
-#            outfile += "".join([str(j+1)+" " for j in adj[i]])
-#        else:
-#            outfile += str(i+1) + " " + str(len(adj[i])) + "\t"
-#            outfile += "".join([str(j+1)+" " for j in adj[i]])+str(adj[i][0]+1)
-#        outfile += "\n"
-#    outfile += "\nEND"
-#    print(outfile)
-#    plot_tri(d)
