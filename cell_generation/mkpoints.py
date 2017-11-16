@@ -71,29 +71,32 @@ def make_oriented_adj(d):
     (indices, indptr) = d.vertex_neighbor_vertices
     ch = d.convex_hull
     ch_vis = np.unique(ch) # indices of ch verts
-
     ns = [0.0]*d.npoints
+
     for i in range(d.npoints):
         v = tuple(d.points[i])
         n_is = indptr[indices[i]:indices[i+1]] # indices of neighbors, unsorted
         n_pts = sort_neighbors(v, [(i, tuple(d.points[i])) for i in n_is])
 
-        if i in ch_vis:
-            print(i, " is in ch")
-            ch_neighbors = [j for j in n_is if j in ch_vis]
-            print(i, " neighbors are ",ch_neighbors)
-            # assert length 2 (exactly two neighbors in convex hull)
-            if len(ch_neighbors) == 2:
-                # rotate until "smaller" (more cw) point is first in list
-                a, b = d.points[ch_neighbors[0]], d.points[ch_neighbors[1]]
-                if less(a, b, d.points[i]):
-                    n_pts = rotate(n_pts, ch_neighbors[0])
-                else:
-                    n_pts = rotate(n_pts, ch_neighbors[1])
+        if (i in ch_vis) and (d.npoints != 3):
+            print(i+1, " is in ch")
+            ch_neighbors = [(j, tuple(d.points[j])) for j in n_is if j in ch_vis]
+            ch_ns = [k for (k,pt) in sort_neighbors(d.points[i], ch_neighbors)]
+            n1, n2 = ch_ns[0], ch_ns[-1]
+            print(i+1, " neighbors are ", n1+1, n2+1)
 
+            # rotate until "smaller" (more cw) point is first in list
+            a, b = d.points[n1], d.points[n2]
+            if less(a, b, d.points[i]):
+                print("before rotation: ",[k for (k,pt) in n_pts])
+                print("rotate by ", n1)
+                n_pts = rotate(n_pts, n1)
+                print("after rotation: ",[k for (k,pt) in n_pts])
             else:
-                #raise ValueError("should be exactly two neighbors in convex hull")
-                print("should be exactly two neighbors in convex hull")
+                print("before rotation: ",[k for (k,pt) in n_pts])
+                print("rotate by ", n2)
+                n_pts = rotate(n_pts, n2)
+                print("after rotation: ",[k for (k,pt) in n_pts])
 
         ns[i] = n_pts
     return ns
