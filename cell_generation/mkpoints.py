@@ -24,7 +24,6 @@ def rotate(l, i):
 
 # return true iff a is clockwise of b, with c as the center
 # if points are collinear ones further from center will be "less"
-# positive x axis is "zero"
 
 # https://stackoverflow.com/questions/6989100/sort-points-in-clockwise-order
 def less(a, b, center):
@@ -53,36 +52,55 @@ def less(a, b, center):
 
 # python sorting quirks - requires numerical value
 def less_cmp(a, b, center):
-    (i, an), (j, bn), (k, cn) = a, b, center
+    (i, an), (j, bn), cn = a, b, center
     if less(an, bn, cn):
         return 1.0
     else:
         return -1.0
 
+# sort_neighbors :: Point -> [(Int, Point)] -> [(Int, Point)]
 def sort_neighbors(v1, neighbors):
     v_cmp = lambda a,b: less_cmp(a,b,v1)
     ccw_neighbors = sorted(neighbors, key=cmp_to_key(v_cmp))
     return ccw_neighbors
 
 # python library bookkeeping
-# returns adjacency graph, but neighbors are unordered
-def get_neighbor_vertices(d):
+# returns adjacency graph, with neighbors sorted ccw
+# Delaunay -> [Point, [(Int, Point)]
+def make_oriented_adj(d):
     (indices, indptr) = d.vertex_neighbor_vertices
-    ns = {}
+    ch = d.convex_hull
+    ch_vis = np.unique(ch) # indices of ch verts
+
+    ns = [0.0]*d.npoints
     for i in range(d.npoints):
-        v = (i, tuple(d.points[i]))
-        n_inds = indptr[indices[i]:indices[i+1]]
-        n_pts = sort_neighbors(v, [(i, tuple(d.points[i])) for i in n_inds])
-        ns[v] = n_pts
+        v = tuple(d.points[i])
+        n_is = indptr[indices[i]:indices[i+1]] # indices of neighbors, unsorted
+        n_pts = sort_neighbors(v, [(i, tuple(d.points[i])) for i in n_is])
+
+        if i in ch_vis:
+            print(i, " is in ch")
+            ch_neighbors = [j for j in n_is if j in ch_vis]
+            print(i, " neighbors are ",ch_neighbors)
+            # assert length 2 (exactly two neighbors in convex hull)
+            if len(ch_neighbors) == 2:
+                # rotate until "smaller" (more cw) point is first in list
+                a, b = d.points[ch_neighbors[0]], d.points[ch_neighbors[1]]
+                if less(a, b, d.points[i]):
+                    n_pts = rotate(n_pts, ch_neighbors[0])
+                else:
+                    n_pts = rotate(n_pts, ch_neighbors[1])
+
+            else:
+                #raise ValueError("should be exactly two neighbors in convex hull")
+                print("should be exactly two neighbors in convex hull")
+
+        ns[i] = n_pts
     return ns
 
-def make_oriented_adj(d):
-    pts = d.points
-    ch = flatten(d.convex_hull)
-    return get_neighbor_vertices(d)
 
-
-
+d = make_triangulation(10)
+adj = make_oriented_adj(d)
 
 
 def plot_tri(d):
@@ -95,11 +113,11 @@ def plot_tri(d):
 def write_adj(n):
     d = make_triangulation(n)
     adj = make_oriented_adj(d)
+    print(adj)
 
-    for v in adj:
-        i,pt = v
-        ns = [ip for (ip, pts) in adj[v]]
-        print(i)
+    for i in range(n):
+        ns = [ip+1 for (ip, pts) in adj[i]]
+        print(i+1)
         print("\t",ns)
 
     plot_tri(d)
